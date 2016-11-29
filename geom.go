@@ -106,6 +106,16 @@ type Rect struct {
 	p, q Point // Enforced by NewRect: p[i] <= q[i] for all i.
 }
 
+// The coordinate of the point of the rectangle at i
+func (r *Rect) PointCoord(i int) float64 {
+	return r.p[i]
+}
+
+// The coordinate of the lengths of the rectangle at i
+func (r *Rect) LengthsCoord(i int) float64 {
+	return r.q[i] - r.p[i]
+}
+
 func (r *Rect) String() string {
 	var s [Dim]string
 	for i, a := range r.p {

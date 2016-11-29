@@ -9,6 +9,11 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"sync"
+)
+
+var (
+	splitMutex = sync.Mutex{}
 )
 
 const Dim = 3
@@ -115,8 +120,8 @@ func (tree *Rtree) insert(e entry, level int) {
 			parent: nil,
 			level:  tree.height,
 			entries: []entry{
-				entry{bb: oldRoot.computeBoundingBox(), child: oldRoot},
-				entry{bb: splitRoot.computeBoundingBox(), child: splitRoot},
+				{bb: oldRoot.computeBoundingBox(), child: oldRoot},
+				{bb: splitRoot.computeBoundingBox(), child: splitRoot},
 			},
 		}
 		oldRoot.parent = tree.root
@@ -149,12 +154,16 @@ func (tree *Rtree) chooseNode(n *node, e entry, level int) *node {
 // adjustTree splits overflowing nodes and propagates the changes upwards.
 func (tree *Rtree) adjustTree(n, nn *node) (*node, *node) {
 	// Let the caller handle root adjustments.
+	//START:
 	if n == tree.root {
 		return n, nn
 	}
 
 	// Re-size the bounding box of n to account for lower-level changes.
 	en := n.getEntry()
+	// if en == nil {
+	// 	goto START
+	// }
 	en.bb = n.computeBoundingBox()
 
 	// If nn is nil, then we're just propagating changes upwards.
@@ -204,9 +213,12 @@ func (n *node) computeBoundingBox() *Rect {
 // split splits a node into two groups while attempting to minimize the
 // bounding-box area of the resulting groups.
 func (n *node) split(minGroupSize int) (left, right *node) {
+	splitMutex.Lock()
 	// find the initial split
 	l, r := n.pickSeeds()
 	leftSeed, rightSeed := n.entries[l], n.entries[r]
+
+	splitMutex.Unlock()
 
 	// get the entries to be divided between left and right
 	remaining := append(n.entries[:l], n.entries[l+1:r]...)
@@ -296,13 +308,17 @@ func (n *node) pickSeeds() (int, int) {
 	left, right := 0, 1
 	maxWastedSpace := -1.0
 	var bb Rect
-	for i, e1 := range n.entries {
-		for j, e2 := range n.entries[i+1:] {
+	// for i := 0; i < len(n.entries)-1; i++ {
+	// 	e1 := n.entries[i]
+	for i := 0; i < len(n.entries)-1; i++ {
+		for j := i + 1; j < len(n.entries); j++ {
+			e1 := n.entries[i]
+			e2 := n.entries[j]
 			initBoundingBox(&bb, e1.bb, e2.bb)
 			d := bb.size() - e1.bb.size() - e2.bb.size()
 			if d > maxWastedSpace {
 				maxWastedSpace = d
-				left, right = i, j+i+1
+				left, right = i, j
 			}
 		}
 	}
