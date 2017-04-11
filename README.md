@@ -1,14 +1,13 @@
 rtreego
 =======
 
-[![GoDoc](https://godoc.org/github.com/patrick-higgins/rtreego?status.svg)](https://godoc.org/github.com/patrick-higgins/rtreego)
+[![GoDoc](https://godoc.org/github.com/200sc/rtreego?status.svg)](https://godoc.org/github.com/200sc/rtreego)
 
 A library for efficiently storing and querying spatial data
 in the Go programming language.
 
-Forked from github.com/dhconnelly/rtreego to specialize for 3 dimensions
-and tune for fewer memory allocations.
-
+Forked from github.com/patrick-higgins/rtreego to expose some private
+fields and test some operations for concurrent safety.
 
 About
 -----
@@ -38,13 +37,13 @@ algorithms are currently under development.
 Install
 -------
 
-With Go 1 installed, just run `go get github.com/patrick-higgins/rtreego`.
+With Go 1 installed, just run `go get github.com/200sc/rtreego`.
 
 
 Usage
 -----
 
-Make sure you `import github.com/patrick-higgins/rtreego` in your Go source files.
+Make sure you `import github.com/200sc/rtreego` in your Go source files.
 
 ### Storing, updating, and deleting objects
 
@@ -145,7 +144,7 @@ query point.
 
 ### More information
 
-See http://github.com/patrick-higgins/rtreego for full API documentation.
+See http://github.com/200sc/rtreego for full API documentation.
 
 
 References
@@ -171,8 +170,10 @@ Author
 rtreego is written and maintained by Daniel Connelly.  You can find my stuff
 at dhconnelly.com or email me at dhconnelly@gmail.com.
 
-This fork is maintained by Patrick Higgins (patrick.allen.higgins@gmail.com).
+rtreego was forked by Patrick Higgins(patrick.allen.higgins@gmail.com) to improve peformance in
+the specific case of a 3D rtree.  
 
+This fork, of Patrick Higgins' fork, is maintained by Patrick Stephen(patrick.d.stephen@gmail.com).
 
 License
 -------
