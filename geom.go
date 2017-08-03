@@ -116,6 +116,21 @@ func (r *Rect) LengthsCoord(i int) float64 {
 	return r.q[i] - r.p[i]
 }
 
+// Equal returns true if the two rectangles are equal
+func (r *Rect) Equal(other *Rect) bool {
+	for i, e := range r.p {
+		if e != other.p[i] {
+			return false
+		}
+	}
+	for i, e := range r.q {
+		if e != other.q[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Rect) String() string {
 	var s [Dim]string
 	for i, a := range r.p {
@@ -266,4 +281,17 @@ func boundingBox(r1, r2 *Rect) *Rect {
 	var r Rect
 	initBoundingBox(&r, r1, r2)
 	return &r
+}
+
+// boundingBoxN constructs the smallest rectangle containing all of r...
+func boundingBoxN(rects ...*Rect) (bb *Rect) {
+	if len(rects) == 1 {
+		bb = rects[0]
+		return
+	}
+	bb = boundingBox(rects[0], rects[1])
+	for _, rect := range rects[2:] {
+		bb = boundingBox(bb, rect)
+	}
+	return
 }

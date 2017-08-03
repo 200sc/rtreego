@@ -9,11 +9,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"sync"
-)
-
-var (
-	splitMutex = sync.Mutex{}
 )
 
 const Dim = 3
@@ -154,16 +149,12 @@ func (tree *Rtree) chooseNode(n *node, e entry, level int) *node {
 // adjustTree splits overflowing nodes and propagates the changes upwards.
 func (tree *Rtree) adjustTree(n, nn *node) (*node, *node) {
 	// Let the caller handle root adjustments.
-	//START:
 	if n == tree.root {
 		return n, nn
 	}
 
 	// Re-size the bounding box of n to account for lower-level changes.
 	en := n.getEntry()
-	// if en == nil {
-	// 	goto START
-	// }
 	en.bb = n.computeBoundingBox()
 
 	// If nn is nil, then we're just propagating changes upwards.
@@ -198,27 +189,21 @@ func (n *node) getEntry() *entry {
 }
 
 // computeBoundingBox finds the MBR of the children of n.
-func (n *node) computeBoundingBox() *Rect {
-	var bb Rect
+func (n *node) computeBoundingBox() (bb *Rect) {
+	childBoxes := make([]*Rect, len(n.entries))
 	for i, e := range n.entries {
-		if i == 0 {
-			bb = *e.bb
-		} else {
-			bb.enlarge(e.bb)
-		}
+		childBoxes[i] = e.bb
 	}
-	return &bb
+	bb = boundingBoxN(childBoxes...)
+	return
 }
 
 // split splits a node into two groups while attempting to minimize the
 // bounding-box area of the resulting groups.
 func (n *node) split(minGroupSize int) (left, right *node) {
-	splitMutex.Lock()
 	// find the initial split
 	l, r := n.pickSeeds()
 	leftSeed, rightSeed := n.entries[l], n.entries[r]
-
-	splitMutex.Unlock()
 
 	// get the entries to be divided between left and right
 	remaining := append(n.entries[:l], n.entries[l+1:r]...)
@@ -307,18 +292,12 @@ func assignGroup(e entry, left, right *node) {
 func (n *node) pickSeeds() (int, int) {
 	left, right := 0, 1
 	maxWastedSpace := -1.0
-	var bb Rect
-	// for i := 0; i < len(n.entries)-1; i++ {
-	// 	e1 := n.entries[i]
-	for i := 0; i < len(n.entries)-1; i++ {
-		for j := i + 1; j < len(n.entries); j++ {
-			e1 := n.entries[i]
-			e2 := n.entries[j]
-			initBoundingBox(&bb, e1.bb, e2.bb)
-			d := bb.size() - e1.bb.size() - e2.bb.size()
+	for i, e1 := range n.entries {
+		for j, e2 := range n.entries[i+1:] {
+			d := boundingBox(e1.bb, e2.bb).size() - e1.bb.size() - e2.bb.size()
 			if d > maxWastedSpace {
 				maxWastedSpace = d
-				left, right = i, j
+				left, right = i, j+i+1
 			}
 		}
 	}
@@ -374,6 +353,8 @@ func (tree *Rtree) Delete(obj Spatial) bool {
 		tree.root = tree.root.entries[0].child
 	}
 
+	tree.height = tree.root.level
+
 	return true
 }
 
@@ -414,6 +395,7 @@ func (tree *Rtree) condenseTree(n *node) {
 				}
 			}
 			if len(n.parent.entries) == len(entries) {
+				// panic?????? whyyyy
 				panic(fmt.Errorf("Failed to remove entry from parent"))
 			}
 			n.parent.entries = entries
@@ -438,13 +420,12 @@ func (tree *Rtree) condenseTree(n *node) {
 
 // Searching
 
-// SearchIntersectBB returns all objects that intersect the specified rectangle.
+// SearchIntersect returns all objects that intersect the specified rectangle.
 //
 // Implemented per Section 3.1 of "R-trees: A Dynamic Index Structure for
 // Spatial Searching" by A. Guttman, Proceedings of ACM SIGMOD, p. 47-57, 1984.
 func (tree *Rtree) SearchIntersect(bb *Rect) []Spatial {
-	results := []Spatial{}
-	return tree.searchIntersect(tree.root, bb, results)
+	return tree.searchIntersect(tree.root, bb, []Spatial{})
 }
 
 func (tree *Rtree) searchIntersect(n *node, bb *Rect, results []Spatial) []Spatial {
@@ -472,7 +453,6 @@ func (tree *Rtree) NearestNeighbor(p Point) Spatial {
 type entrySlice struct {
 	entries []entry
 	dists   []float64
-	pt      Point
 }
 
 func (s entrySlice) Len() int { return len(s.entries) }
@@ -493,7 +473,7 @@ func sortEntries(p Point, entries []entry) ([]entry, []float64) {
 		sorted[i] = entries[i]
 		dists[i] = p.minDist(entries[i].bb)
 	}
-	sort.Sort(entrySlice{sorted, dists, p})
+	sort.Sort(entrySlice{sorted, dists})
 	return sorted, dists
 }
 
